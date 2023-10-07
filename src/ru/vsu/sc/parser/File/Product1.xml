@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<products>
+	<product id="1">
+		<name>Juice</name>
+		<price>10.99</price>
+	</product>
+	<product id="2">
+		<name>Potato</name>
+		<price>19.99</price>
+	</product>
+	
+</products>
