@@ -1,6 +1,8 @@
 package ru.vsu.sc.parser;
 
 
+import java.io.IOException;
+import java.util.Map;
 
 public class Main {
     public static void main(String[] args) {
@@ -10,6 +12,10 @@ public class Main {
         CSVParser parser = new CSVParser(path, delimiter);
         parser.parseCSV();
         // чтение файла json
+        Map<String, Object> jsonMap = JSONParser.parseJSON("C:\\Users\\Ideapad Gaming\\IdeaProjects\\Parser\\src\\ru\\vsu\\sc\\parser\\File\\data1.json");
+
+        // Используем полученный объект jsonMap
+        System.out.println(jsonMap);
 
 
     }
