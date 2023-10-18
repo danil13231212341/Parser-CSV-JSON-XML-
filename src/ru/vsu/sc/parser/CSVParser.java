@@ -3,36 +3,28 @@ package ru.vsu.sc.parser;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 public class CSVParser {
-    private String filePath;
+    private String path;
+    private String delimiter;
 
-    public CSVParser(String filePath) {
-        this.filePath = filePath;
+    public CSVParser(String path, String delimiter) {
+        this.path = path;
+        this.delimiter = delimiter;
     }
 
-    public List<Product> parseCsv() {
-        List<Product> products = new ArrayList<>();
-
-        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+    public void parseCSV() {
+        try (BufferedReader reader = new BufferedReader(new FileReader(path))) {
             String line;
-            while ((line = br.readLine()) != null) {
-                // Разделение строки на поля по разделителю ";"
-                String[] fields = line.split(";");
-
-                // Создание объекта Product из полей и добавление его в список
-                int id = Integer.parseInt(fields[0]);
-                String name = fields[1];
-                double price = Double.parseDouble(fields[2]);
-                Product product = new Product(id, name, price);
-                products.add(product);
+            while ((line = reader.readLine()) != null) {
+                String[] values = line.split(delimiter);
+                for (String value : values) {
+                    System.out.print(value + "\t");
+                }
+                System.out.println();
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        return products;
     }
 }
