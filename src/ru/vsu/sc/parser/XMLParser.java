@@ -1,7 +1,5 @@
 package ru.vsu.sc.parser;
 
-import ru.vsu.sc.parser.util.MyHashMultiMap;
-
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -62,6 +60,10 @@ public class XMLParser {
         }
     }
 
+    private Object map;
+    public XMLParser(String filePath) {
+        this.map = parseXML(filePath);
+    }
 
     private static String readFile(String filePath) {
         StringBuilder content = new StringBuilder();
@@ -76,13 +78,13 @@ public class XMLParser {
         return content.toString();
     }
 
-    public static Object parseXML(String filePath) {
-        String jsonData = readFile(filePath);
-        return parseXMLbyData(jsonData);
+    private static Object parseXML(String filePath) {
+        String xmlData = readFile(filePath);
+        return parseXMLbyData(xmlData);
     }
 
-    private static Object parseXMLbyData(String jsonData) {
-        return parseXML(new IndexWrapper(jsonData));
+    private static Object parseXMLbyData(String xmlData) {
+        return parseXML(new IndexWrapper(xmlData));
     }
 
     private static String parseTag(IndexWrapper iw) {
@@ -98,7 +100,6 @@ public class XMLParser {
         Stack<Map<String, List<Object>>> mapStack = new Stack<>();
 
 
-
         Map<String, List<Object>> toReturn = new HashMap<>();
 
         iw.nextWhileNot('<');
@@ -109,16 +110,16 @@ public class XMLParser {
         mapStack.add(toReturn);
         mapStack.add(new HashMap<>());
 
-        System.out.println(curTag);
+        //System.out.println(curTag);
 
-        System.out.println("Старт");
-        System.out.println(tagStack);
+        //System.out.println("Старт");
+        //System.out.println(tagStack);
 
         while (!tagStack.isEmpty()) {
             iw.nextWhileNot('<');
 
             curTag = parseTag(iw);
-            System.out.println(curTag);
+            //System.out.println(curTag);
 
             if (Objects.equals(curTag, tagStack.peek())) {
                 String realTag = curTag.substring(1);
@@ -133,20 +134,17 @@ public class XMLParser {
                 iw.next();
                 iw.nextWhileNot('>');
 
-                if(indexLast == indexStack.peek()){
-                    Map<String, List<Object>> mapToAdd = mapStack.pop();
-                    List<Object> lst = mapToAdd.getOrDefault(realTag, new ArrayList<>());
+                if (indexLast == indexStack.peek()) {
+                    mapStack.pop();
+                    Object value = parsePrimitiveValue(iw.getData().substring(indexStart + 1, indexEnd));
 
-                    String value = iw.getData().substring(indexStart + 1, indexEnd);
+
+                    List<Object> lst =  mapStack.peek().getOrDefault(realTag, new ArrayList<>());
                     lst.add(value);
-
-                    lst = mapStack.peek().getOrDefault(realTag, new ArrayList<>());
-                    lst.add(mapToAdd);
                     mapStack.peek().put(realTag, lst);
 
-                    System.out.println("value : " + value);
-                }
-                else{
+                    //System.out.println("value : " + value);
+                } else {
                     // need mapToAdd add
                     Map<String, List<Object>> mapToAdd = mapStack.pop();
 
@@ -159,31 +157,69 @@ public class XMLParser {
                 indexStack.pop();
                 tagStack.pop();
 
-                System.out.println("Закрыл");
-                System.out.println(tagStack);
+                //System.out.println("Закрыл");
+                //System.out.println(tagStack);
 
             } else {
                 indexStack.add(iw.index);
                 tagStack.add("/" + curTag);
                 mapStack.add(new HashMap<>());
 
-                System.out.println("Новый");
-                System.out.println(tagStack);
+                //System.out.println("Новый");
+                //System.out.println(tagStack);
 
             }
-            System.out.println("_-".repeat(20));
+            //.out.println("_-".repeat(20));
         }
         return toReturn;
     }
 
-    private static Object parsePrimitiveValue(String value) {
-        if (true) return value;
-        if ("true".equals(value)) return true;
-        if ("false".equals(value)) return false;
-        if (value.contains(".")) return Double.parseDouble(value);
+    public Object getByKeyLine( String keyLine) {
+        List<String> keyList = parseKeyLine(keyLine);
+        Object obj = map;
+        for (String key : keyList) {
+            Map<String, List<Object>> localMap = (Map<String, List<Object>>) obj;
+            String subKey = key.substring(0, key.indexOf(":"));
+            int index = Integer.parseInt(key.substring(key.indexOf(":") + 1));
 
-        else return Integer.parseInt(value);
-
+            obj = localMap.get(subKey).get(index);
+        }
+        return obj;
     }
 
+    private static List<String> parseKeyLine(String keyLine) {
+        List<String> keyList = new java.util.ArrayList<>(List.of(keyLine.split("=>")));
+        for (int i = 0; i < keyList.size(); i++) {
+            if (!keyList.get(i).contains(":")) keyList.set(i, keyList.get(i) + ":0");
+        }
+        return keyList;
+    }
+    private static boolean isDouble(String value){
+        try{
+            Double.parseDouble(value);
+            return true;
+        } catch (NumberFormatException e){
+            return false;
+        }
+    }
+    private static boolean isInteger(String value){
+        try{
+            Integer.parseInt(value);
+            return true;
+        } catch (NumberFormatException e){
+            return false;
+        }
+    }
+    private static Object parsePrimitiveValue(String value) {
+        String valuerTrim = value.trim();
+        if ("true".equals(valuerTrim)) return true;
+        if ("false".equals(valuerTrim)) return false;
+        if (isDouble(valuerTrim)) return Double.parseDouble(valuerTrim);
+        if (isInteger(valuerTrim)) return Integer.parseInt(valuerTrim);
+        return value;
+    }
+
+    public Object getMap() {
+        return map;
+    }
 }

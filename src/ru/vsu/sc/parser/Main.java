@@ -1,76 +1,73 @@
 package ru.vsu.sc.parser;
 
 
-import ru.vsu.sc.parser.util.MyHashMultiMap;
-
-import java.security.Key;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 
 public class Main {
+
+    public static void testJSON1() {
+        Object jsonMap = JSONParser.parseJSON("src/ru/vsu/sc/parser/File/data1.json");
+        myPrint(jsonMap, 0);
+    }
+
+    public static void testJSON2() {
+        Object jsonMap = JSONParser.parseJSON("src/ru/vsu/sc/parser/File/data2.json");
+        myPrint(jsonMap, 0);
+    }
+
+    public static void testCSV1() {
+        String path = "src/ru/vsu/sc/parser/File/data.csv";
+        String delimiter = ";";
+        CSVParser parser = new CSVParser(path, delimiter);
+        parser.parseCSV();
+    }
+
+    public static void testXML1() {
+        XMLParser xmlParser = new XMLParser("src/ru/vsu/sc/parser/File/data2.xml");
+        myPrint(xmlParser.getMap(), 0);
+
+        String keyLine = "PurchaseOrder=>Address:0=>Street";
+        System.out.println('"' + keyLine + '"' + " : " +  '"' +xmlParser.getByKeyLine(keyLine) + '"');
+
+        keyLine = "PurchaseOrder=>Address:1=>Street";
+        System.out.println('"' + keyLine + '"' + " : " +  '"' +xmlParser.getByKeyLine(keyLine) + '"');
+
+        keyLine = "PurchaseOrder=>DeliveryNotes";
+        System.out.println('"' + keyLine + '"' + " : " +  '"' +xmlParser.getByKeyLine(keyLine) + '"');
+
+        keyLine = "PurchaseOrder=>Items=>Item:1=>ProductName:0";
+        System.out.println('"' + keyLine + '"' + " : " +  '"' +xmlParser.getByKeyLine(keyLine) + '"');
+    }
+
     public static void main(String[] args) {
-        //// чтение файла csv
-        //String path = "C:\\Users\\Ideapad Gaming\\IdeaProjects\\Parser\\src\\ru\\vsu\\sc\\parser\\File\\data.csv";
-        //String delimiter = ";";
-        //CSVParser parser = new CSVParser(path, delimiter);
-        //parser.parseCSV();
-        //// чтение файла json
-        //Map<String, Object> jsonMap = (Map<String, Object>) JSONParser.parseJSON("src/ru/vsu/sc/parser/File/data2.json");
-        //List<Object> jsonMap = (List<Object>) JSONParser.parseJSON("src/ru/vsu/sc/parser/File/data1.json");
-
-        // Используем полученный объект jsonMap
-        //myPrint(jsonMap, 0);
-        //System.out.println(jsonMap);
-
-
-        // XML parser
-        MyHashMultiMap<String, Object> xmlMap = XMLParser.parseXML("src/ru/vsu/sc/parser/File/data2.xml");
-        myXmlPrint(xmlMap, 0);
-        System.out.println(xmlMap);
-        System.out.println("-".repeat(20));
-        System.out.println(XMLParser.fixMMap(xmlMap));
-        //String keyLine = "PurchaseOrder:1=>Address=>Street";
-        //System.out.println(XMLParser.getFromXMLMapByKeyLine(xmlMap, keyLine));
+        testXML1();
+        //testCSV1();
+        //testJSON1();
+        //testJSON2();
 
     }
 
-    public static void myJsonPrint(Object o, int n) {
+    public static void myPrint(Object o, int n) {
         if (o instanceof Map<?, ?>) {
             Map<String, Object> map = (Map<String, Object>) o;
             System.out.println("\t".repeat(n) + "{");
             for (String key : map.keySet()) {
                 System.out.println("\t".repeat(n) + "\"" + key + "\" : ");
-                myJsonPrint(map.get(key), n + 1);
+                myPrint(map.get(key), n + 1);
             }
             System.out.println("\t".repeat(n) + "}");
-        } else if (o instanceof ArrayList<?>) {
+        } else if (o instanceof List<?>) {
             System.out.println("\t".repeat(n) + "[");
-            for (Object obj : (ArrayList<Object>) o) {
-                myJsonPrint(obj, n + 1);
+            for (Object obj : (List<?>) o) {
+                myPrint(obj, n + 1);
             }
             System.out.println("\t".repeat(n) + "]");
 
         } else if (o instanceof String) {
             System.out.println("\t".repeat(n) + "\"" + o + "\",");
         } else System.out.println("\t".repeat(n) + o + ",");
-    }
-
-    public static void myXmlPrint(Object o, int n){
-        MyHashMultiMap<String, Object> mMap = (MyHashMultiMap<String, Object>) o;
-        System.out.println("\t".repeat(n) + "{");
-        for(String key : mMap.keySet()){
-            System.out.println("\t".repeat(n + 1) + key + ": [");
-            for(Object value : mMap.get(key)){
-                if(value instanceof MyHashMultiMap<?,?>) {
-                    myXmlPrint(value, n + 1);
-                } else{
-                    System.out.println("\t".repeat(n + 2) + value + ",");
-                }
-            }
-            System.out.println("\t".repeat(n + 1) + "]");
-
-        }
-        System.out.println("\t".repeat(n) + "}");
     }
 }
