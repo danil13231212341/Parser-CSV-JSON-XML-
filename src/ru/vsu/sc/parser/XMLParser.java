@@ -76,12 +76,12 @@ public class XMLParser {
         return content.toString();
     }
 
-    public static MyHashMultiMap<String, Object> parseXML(String filePath) {
+    public static Object parseXML(String filePath) {
         String jsonData = readFile(filePath);
         return parseXMLbyData(jsonData);
     }
 
-    private static MyHashMultiMap<String, Object> parseXMLbyData(String jsonData) {
+    private static Object parseXMLbyData(String jsonData) {
         return parseXML(new IndexWrapper(jsonData));
     }
 
@@ -92,37 +92,88 @@ public class XMLParser {
         return iw.getData().substring(indexStart + 1, iw.getIndex());
     }
 
-    private static MyHashMultiMap<String, Object> parseXML(IndexWrapper iw) {
+    private static Object parseXML(IndexWrapper iw) {
+        Stack<String> tagStack = new Stack<>();
+        Stack<Integer> indexStack = new Stack<>();
+        Stack<Map<String, List<Object>>> mapStack = new Stack<>();
+
+
+
+        Map<String, List<Object>> toReturn = new HashMap<>();
+
         iw.nextWhileNot('<');
-
-        MyHashMultiMap<String, Object> mMap = new MyHashMultiMap<>();
-
         String curTag = parseTag(iw);
-        String closedCurTag = "/" + curTag;
 
-        int indexSave = iw.getIndex(); // stand on '>'
-        String tagNow;
+        indexStack.add(iw.index);
+        tagStack.add("/" + curTag);
+        mapStack.add(toReturn);
+        mapStack.add(new HashMap<>());
 
-        iw.next();
-        iw.nextWhileNot('<');
-        tagNow = parseTag(iw);
-        if (tagNow.equals(closedCurTag)) {
-            // <tag>!no tags inside!</tag>      =>      primitive value inside
-            iw.backWhileNot('<');
-            mMap.put(curTag, parsePrimitiveValue(iw.getData().substring(indexSave + 1, iw.getIndex())));
-            iw.nextWhileNot('>');
-            return mMap;
+        System.out.println(curTag);
+
+        System.out.println("Старт");
+        System.out.println(tagStack);
+
+        while (!tagStack.isEmpty()) {
+            iw.nextWhileNot('<');
+
+            curTag = parseTag(iw);
+            System.out.println(curTag);
+
+            if (Objects.equals(curTag, tagStack.peek())) {
+                String realTag = curTag.substring(1);
+                int indexStart = indexStack.peek();
+                int indexEnd = iw.backWhileNot('<');
+                iw.nextWhileNot('>');
+
+                // no tag inside check
+                iw.back();
+                int indexLast = iw.backWhileNot('>');
+
+                iw.next();
+                iw.nextWhileNot('>');
+
+                if(indexLast == indexStack.peek()){
+                    Map<String, List<Object>> mapToAdd = mapStack.pop();
+                    List<Object> lst = mapToAdd.getOrDefault(realTag, new ArrayList<>());
+
+                    String value = iw.getData().substring(indexStart + 1, indexEnd);
+                    lst.add(value);
+
+                    lst = mapStack.peek().getOrDefault(realTag, new ArrayList<>());
+                    lst.add(mapToAdd);
+                    mapStack.peek().put(realTag, lst);
+
+                    System.out.println("value : " + value);
+                }
+                else{
+                    // need mapToAdd add
+                    Map<String, List<Object>> mapToAdd = mapStack.pop();
+
+                    List<Object> lst = mapStack.peek().getOrDefault(realTag, new ArrayList<>());
+                    lst.add(mapToAdd);
+                    mapStack.peek().put(realTag, lst);
+                }
+
+
+                indexStack.pop();
+                tagStack.pop();
+
+                System.out.println("Закрыл");
+                System.out.println(tagStack);
+
+            } else {
+                indexStack.add(iw.index);
+                tagStack.add("/" + curTag);
+                mapStack.add(new HashMap<>());
+
+                System.out.println("Новый");
+                System.out.println(tagStack);
+
+            }
+            System.out.println("_-".repeat(20));
         }
-        while (!Objects.equals(closedCurTag, tagNow)) {
-            iw.next();
-            iw.backWhileNot('<');
-            mMap.put(curTag, parseXML(iw));
-
-            iw.next();
-            iw.nextWhileNot('<'); // next tag
-            tagNow = parseTag(iw);
-        }
-        return mMap;
+        return toReturn;
     }
 
     private static Object parsePrimitiveValue(String value) {
@@ -133,56 +184,6 @@ public class XMLParser {
 
         else return Integer.parseInt(value);
 
-    }
-
-    public static Object getFromXMLMapByKeyLine(MyHashMultiMap<String, Object> mMap, String keyLine) {
-        List<String> keyList = parseKeyLine(keyLine);
-        System.out.println(keyList);
-        Object obj = mMap;
-        for (String key : keyList) {
-            MyHashMultiMap<String, Object> localMMap = (MyHashMultiMap<String, Object>) obj;
-            String subKey = key.substring(0, key.indexOf(":"));
-            int index = Integer.parseInt(key.substring(key.indexOf(":") + 1));
-            obj = localMMap.get(subKey).get(index);
-        }
-        return obj;
-    }
-
-    public static Map<String, Object> fixMMap(MyHashMultiMap<String, Object> mMap){
-        Map<String, Object>obj = new HashMap<>();
-        for(String key : mMap.keySet()){
-            if(mMap.get(key).size() == 1) {
-                if(mMap.get(key).get(0) instanceof MyHashMultiMap<?,?>){
-                    obj.putAll(fixMMap((MyHashMultiMap<String, Object>) mMap.get(key).get(0)));
-                } else{
-                    obj.put(key, mMap.get(key).get(0));
-                }
-            }
-            else {
-                List<Map<String, Object>> lst = new ArrayList<>(mMap.get(key).size());
-                for(Object value : mMap.get(key)){
-                    if(value instanceof MyHashMultiMap<?,?>){
-                       lst.add(fixMMap((MyHashMultiMap<String, Object>) value));
-                    } else{
-                        obj.put(key, value);
-                    }
-                }
-                for(Map<String, Object> lstObj: lst){
-                    for(String lstKey : lstObj.keySet()){
-                        obj.put(lstKey, lstObj.get(lstKey));
-                    }
-                }
-            }
-        }
-        return obj;
-    }
-
-    private static List<String> parseKeyLine(String keyLine) {
-        List<String> keyList = new java.util.ArrayList<>(List.of(keyLine.split("=>")));
-        for (int i = 0; i < keyList.size(); i++) {
-            if (!keyList.get(i).contains(":")) keyList.set(i, keyList.get(i) + ":0");
-        }
-        return keyList;
     }
 
 }
