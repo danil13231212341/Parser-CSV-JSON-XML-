@@ -3,15 +3,14 @@ package ru.vsu.sc.parser;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.security.Key;
 import java.util.*;
 
 public class JSONParser {
-    private static class IndexWapper {
+    private static class IndexWrapper {
         private int index = 0;
         private final String data;
 
-        public IndexWapper(String data) {
+        public IndexWrapper(String data) {
             this.data = data.trim();
         }
 
@@ -21,10 +20,6 @@ public class JSONParser {
 
         public void next() {
             index++;
-        }
-
-        public boolean hasNext() {
-            return index + 1 < data.length();
         }
 
         private void skipSpaces() {
@@ -40,7 +35,7 @@ public class JSONParser {
         }
 
         public Character nextWhileNotIn(String str) {
-            while ( !str.contains(String.valueOf(charNow()))) next();
+            while (!str.contains(String.valueOf(charNow()))) next();
             return charNow();
         }
 
@@ -72,11 +67,10 @@ public class JSONParser {
     }
 
     private static Object parseJSONbyData(String jsonData) {
-        return parseValue(new IndexWapper(jsonData));
+        return parseValue(new IndexWrapper(jsonData));
     }
 
-    private static Map<String, Object> parseMap(IndexWapper iw) {
-        String jsonData = iw.getData();
+    private static Map<String, Object> parseMap(IndexWrapper iw) {
         Map<String, Object> jsonMap = new LinkedHashMap<>();
 
         // value
@@ -85,12 +79,9 @@ public class JSONParser {
         iw.next();
         iw.skipSpaces();
         while (iw.charNow() != '}') {
-            Character charNow = iw.charNow();
             // Key Search
-            indexSave = iw.nextWhileNot('"');
-            iw.next();
             iw.nextWhileNot('"');
-            String key = jsonData.substring(indexSave + 1, iw.getIndex());
+            String key = parseString(iw);
             // Value
             iw.nextWhileNot(':');
             iw.next();
@@ -104,34 +95,51 @@ public class JSONParser {
         return jsonMap;
     }
 
-    private static Object parseValue(IndexWapper iw) {
+    private static Object parseValue(IndexWrapper iw) {
         iw.skipSpaces();
         Character chr = iw.charNow();
         if (chr == '[') return parseList(iw);
         if (chr == '{') return parseMap(iw);
         return parsePrimitiveValue(iw);
-
     }
 
-    private static ArrayList<Object> parseList(IndexWapper iw) {
+    private static ArrayList<Object> parseList(IndexWrapper iw) {
         ArrayList<Object> list = new ArrayList<>();
         iw.next();
         iw.skipSpaces();
-        while(iw.charNow() != ']'){
+        while (iw.charNow() != ']') {
             list.add(parseValue(iw));
+            if (iw.nextWhileNotIn(",]") == ']') break;
+            iw.next();
+            iw.skipSpaces();
         }
         iw.next();
         return list;
     }
 
-    private static Object parsePrimitiveValue(IndexWapper iw) {
-
-        if (iw.charNow() == '"') {
-            int indexStart = iw.getIndex();
+    private static String parseString(IndexWrapper iw) {
+        int indexStart = iw.index;
+        boolean beforeIsBackSlash = false;
+        if (iw.charNow() != '"') throw new RuntimeException("Must starts with (\" )");
+        iw.next();
+        while (true) {
+            if (iw.charNow() == '\\') {
+                beforeIsBackSlash = !beforeIsBackSlash;
+            } else if (iw.charNow() == '"' && !beforeIsBackSlash) {
+                return iw.getData().substring(indexStart + 1, iw.getIndex());
+            } else {
+                beforeIsBackSlash = false;
+            }
             iw.next();
-            int indexEnd =  iw.nextWhileNot('"');
+        }
+    }
+
+    private static Object parsePrimitiveValue(IndexWrapper iw) {
+        if (iw.charNow() == '"') {
+            String value = parseString(iw);
+            iw.next();
             iw.nextWhileNotIn(",]}");
-            return iw.getData().substring(indexStart + 1, indexEnd).trim();
+            return value;
         }
 
         int indexSave = iw.getIndex();
